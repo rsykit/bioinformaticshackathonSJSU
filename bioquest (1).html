@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BioQuest — SJSU Hackathon</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#1D9E75;--teal-l:#5DCAA5;--teal-d:#085041;
+  --purple:#534AB7;--purple-l:#AFA9EC;
+  --coral:#D85A30;--coral-l:#F0997B;
+  --amber:#EF9F27;
+  --bg:#080812;--bg2:#0f0f1f;--bg3:#16162a;
+  --card:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.1);
+  --text:#f0f0ff;--muted:#8888aa;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Space Grotesk',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+#bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;opacity:0.3;pointer-events:none}
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:20px}
+.screen{display:none;animation:fadeUp .4s ease}
+.screen.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:rgba(8,8,18,0.92);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(20px)}
+.logo{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700;color:var(--teal-l)}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--teal),var(--purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.5px}
+.badge-t{background:linear-gradient(135deg,var(--teal-d),var(--teal));color:#fff}
+.badge-p{background:linear-gradient(135deg,var(--purple),#8b5cf6);color:#fff}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.api-input{background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;width:200px;outline:none;transition:.2s}
+.api-input:focus{border-color:var(--teal)}
+.api-input::placeholder{color:var(--muted)}
+
+.hero{text-align:center;padding:60px 20px 40px}
+.hero h1{font-size:clamp(2rem,5vw,3.8rem);font-weight:800;background:linear-gradient(135deg,var(--teal-l),var(--purple-l),var(--coral-l));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px;line-height:1.1}
+.hero p{font-size:1.05rem;color:var(--muted);max-width:520px;margin:0 auto}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:20px;margin:36px 0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:26px;transition:.3s;position:relative;overflow:hidden}
+.card-top-bar{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--teal),var(--purple),var(--coral));opacity:0;transition:.3s}
+.card:hover:not(.locked) .card-top-bar{opacity:1}
+.card:hover:not(.locked){transform:translateY(-4px);box-shadow:0 0 30px rgba(29,158,117,.25)}
+.card.locked{opacity:.6}
+.card-icon{font-size:2.2rem;margin-bottom:14px}
+.card h3{font-size:1.15rem;font-weight:700;margin-bottom:8px}
+.card p{color:var(--muted);font-size:.88rem;line-height:1.6;margin-bottom:18px}
+.card .tag{font-size:11px;color:var(--amber);font-weight:600;margin-top:8px}
+
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:11px;font-weight:600;border:none;cursor:pointer;font-size:13px;font-family:var(--sans);transition:.25s}
+.btn:hover:not(:disabled){transform:translateY(-2px)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-teal{background:linear-gradient(135deg,var(--teal),var(--teal-l));color:#fff}
+.btn-purple{background:linear-gradient(135deg,var(--purple),#8b5cf6);color:#fff}
+.btn-coral{background:linear-gradient(135deg,var(--coral),var(--coral-l));color:#fff}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-ghost:hover{color:var(--text);border-color:var(--teal)}
+
+.upload-zone{border:2px dashed var(--border);border-radius:16px;padding:44px 30px;text-align:center;cursor:pointer;transition:.3s;background:rgba(255,255,255,0.02);margin-bottom:20px}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--teal);background:rgba(29,158,117,.05)}
+.u-icon{font-size:2.8rem;opacity:.6;margin-bottom:10px}
+.file-pill{background:rgba(29,158,117,.1);border:1px solid var(--teal);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-top:14px}
+.msg-ok{background:rgba(29,158,117,.1);border:1px solid rgba(29,158,117,.4);border-radius:12px;padding:20px;text-align:center;color:var(--teal-l);margin-top:16px}
+.msg-err{background:rgba(216,90,48,.1);border:1px solid rgba(216,90,48,.4);border-radius:12px;padding:14px;text-align:center;color:#ff8866;margin-top:14px}
+
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center}
+.dna-loader{width:64px;height:64px;position:relative;margin:0 auto}
+.dna-loader::before,.dna-loader::after{content:'';position:absolute;inset:0;border-radius:50%;border:3px solid transparent}
+.dna-loader::before{border-top-color:var(--teal);animation:spin .9s linear infinite}
+.dna-loader::after{border-bottom-color:var(--purple);animation:spin 1.4s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.game-topbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px;padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:16px}
+.prog-wrap{flex:1;min-width:160px}
+.prog-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px}
+.prog-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--teal-l));border-radius:3px;transition:width .6s ease}
+.stats{display:flex;gap:10px}
+.stat{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;padding:8px 14px;text-align:center;min-width:64px}
+.stat-val{font-size:1.2rem;font-weight:700;color:var(--teal-l);display:block}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+
+.q-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:26px;margin-bottom:18px}
+.q-story{font-size:1rem;line-height:1.75;text-align:center;margin-bottom:18px}
+.q-visual{background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:18px;min-height:170px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.seq-text{font-family:var(--mono);font-size:14px;line-height:2.2;color:var(--teal-l);text-align:center;letter-spacing:2.5px;word-break:break-all}
+.seq-hl{background:rgba(216,90,48,.35);padding:2px 4px;border-radius:4px;animation:hl 2s infinite alternate}
+@keyframes hl{from{background:rgba(216,90,48,.25)}to{background:rgba(216,90,48,.55)}}
+.data-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+.data-table th{color:var(--teal-l);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+.data-table td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:16px}
+.choice{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:.25s}
+.choice:hover{transform:translateY(-3px);border-color:var(--teal-l);box-shadow:0 8px 22px rgba(93,202,165,.15)}
+.choice.correct{border-color:var(--teal);background:rgba(29,158,117,.12);animation:cpop .45s ease}
+.choice.wrong{border-color:var(--coral);background:rgba(216,90,48,.1);animation:cshake .45s ease}
+@keyframes cpop{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes cshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.ch-letter{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px;margin-bottom:8px;flex-shrink:0}
+
+.feedback{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;margin-top:18px;animation:fadeUp .3s ease}
+.fb-title{font-size:1.1rem;font-weight:700;margin-bottom:10px}
+.fb-body{color:var(--muted);line-height:1.7;font-size:.92rem;margin-bottom:14px}
+.vids h4{font-size:.8rem;font-weight:600;color:var(--amber);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+.vid-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.vid-card{background:rgba(239,159,39,.06);border:1px solid rgba(239,159,39,.2);border-radius:11px;padding:11px;cursor:pointer;transition:.2s;display:flex;align-items:flex-start;gap:9px}
+.vid-card:hover{background:rgba(239,159,39,.1);transform:translateY(-2px)}
+.vid-thumb{width:40px;height:40px;background:linear-gradient(135deg,#e00,#900);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.vid-title{font-size:.8rem;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:3px}
+.vid-ch{font-size:.72rem;color:var(--muted)}
+
+.results-wrap{max-width:600px;margin:0 auto;text-align:center;padding:40px 20px}
+.big-score{font-size:4rem;font-weight:800;color:var(--teal-l);margin:18px 0}
+.score-lbl{font-size:1.1rem;color:var(--muted);margin-bottom:28px}
+.concept-list{display:grid;gap:10px;text-align:left;margin:18px 0}
+.concept-row{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.cdot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.dok{background:var(--teal);color:#fff}.dno{background:var(--coral);color:#fff}
+
+.lab-wrap{display:grid;grid-template-columns:260px 1fr;gap:18px;min-height:72vh}
+.lab-sidebar{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:8px}
+.lab-btn{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:11px;padding:13px 14px;cursor:pointer;transition:.2s;text-align:left;font-family:var(--sans);color:var(--muted);font-size:.88rem;display:flex;align-items:center;gap:9px}
+.lab-btn:hover,.lab-btn.active{background:rgba(29,158,117,.1);border-color:var(--teal);color:var(--teal-l)}
+.lab-btn .li{font-size:1.2rem;width:26px}
+.lab-main{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;overflow:auto}
+.lab-panel{display:none}
+.lab-panel.active{display:block;animation:fadeUp .3s ease}
+.vis-title{font-size:.8rem;font-weight:600;color:var(--teal-l);margin-bottom:14px;text-transform:uppercase;letter-spacing:.6px}
+
+.dna-canvas{width:100%;display:block;border-radius:12px;background:rgba(0,0,0,.5)}
+
+.chat-msgs{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:9px;margin-bottom:12px}
+.msg{padding:11px 15px;border-radius:11px;font-size:.88rem;line-height:1.6;max-width:92%}
+.msg-ai{background:rgba(29,158,117,.1);border:1px solid rgba(29,158,117,.2);align-self:flex-start}
+.msg-user{background:rgba(83,74,183,.15);border:1px solid rgba(83,74,183,.3);align-self:flex-end}
+.chat-row{display:flex;gap:9px;margin-top:12px}
+.chat-inp{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--sans);font-size:.88rem;padding:9px 13px;outline:none;transition:.2s}
+.chat-inp:focus{border-color:var(--teal)}
+
+.tip{background:rgba(239,159,39,.08);border:1px solid rgba(239,159,39,.2);border-radius:9px;padding:10px 14px;font-size:.82rem;color:var(--amber);margin-bottom:14px}
+.back-btn{background:none;border:none;color:var(--muted);font-size:.88rem;cursor:pointer;padding:8px 0;display:inline-flex;align-items:center;gap:5px;font-family:var(--sans);transition:.2s}
+.back-btn:hover{color:var(--teal-l)}
+.sec-title{font-size:1.25rem;font-weight:700;margin:14px 0 20px;display:flex;align-items:center;gap:9px}
+
+.typing-dots span{animation:dblink 1.2s infinite;display:inline-block;margin:0 1px}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes dblink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.confetti-wrap{position:fixed;inset:0;pointer-events:none;z-index:999}
+@keyframes levelPop{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+#level-unlock{animation:levelPop .5s ease!important}
+
+@media(max-width:700px){
+  .lab-wrap{grid-template-columns:1fr}
+  .lab-sidebar{flex-direction:row;flex-wrap:wrap}
+  .lab-btn{flex:1;min-width:110px;font-size:.8rem}
+  .choices{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<div class="topbar">
+  <div class="logo"><div class="logo-icon">🧬</div>BioQuest</div>
+  <div class="topbar-right">
+    <span class="badge badge-p">SJSU Hackathon</span>
+    <span class="badge badge-t">Track 1</span>
+    <input type="hidden" id="api-key" value="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">
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- HOME -->
+<div id="screen-home" class="screen active">
+  <div class="hero">
+    <h1>Bioinformatics Quest</h1>
+    <p>Upload your research paper. AI transforms it into immersive visual quests and a living interactive lab.</p>
+  </div>
+  <div class="cards">
+    <div class="card" onclick="goUpload()" style="cursor:pointer">
+      <div class="card-top-bar"></div>
+      <div class="card-icon">📄</div>
+      <h3>Upload Research</h3>
+      <p>Drop your paper, slides, or notes. AI analyzes it and builds your personalized experience.</p>
+      <button class="btn btn-teal" onclick="goUpload()">Upload Content →</button>
+    </div>
+    <div class="card locked" id="quest-card">
+      <div class="card-top-bar"></div>
+      <div class="card-icon">🎮</div>
+      <h3>Interactive Quest</h3>
+      <p>Visual challenges — sequences, data tables, pathway diagrams — with video recs when you get stuck.</p>
+      <button class="btn btn-purple" onclick="startQuest()">Start Quest →</button>
+      <div class="tag" id="quest-tag">📤 Upload content first</div>
+    </div>
+    <div class="card locked" id="lab-card">
+      <div class="card-top-bar"></div>
+      <div class="card-icon">🧪</div>
+      <h3>Lab Simulation</h3>
+      <p>DNA animations, pathway maps, data charts, key concepts, and AI chat — all from your paper.</p>
+      <button class="btn btn-coral" onclick="startLab()">Enter Lab →</button>
+      <div class="tag" id="lab-tag">📤 Upload content first</div>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD -->
+<div id="screen-upload" class="screen">
+  <button class="back-btn" onclick="goHome()">← Back</button>
+  <div class="sec-title">📁 Upload Research Content</div>
+  <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+    <div class="u-icon">📄</div>
+    <div style="font-size:1.05rem;font-weight:600;margin-bottom:5px">Drop your research paper here</div>
+    <div style="color:var(--muted);font-size:.88rem">PDF, TXT, MD accepted</div>
+  </div>
+  <input type="file" id="file-input" style="display:none" accept=".pdf,.txt,.md,.markdown,.csv">
+  <div style="text-align:center;color:var(--muted);margin:10px 0;font-size:.82rem">— or paste content below —</div>
+  <textarea id="paste-area" placeholder="Paste your research paper text here…" style="width:100%;min-height:110px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:var(--sans);font-size:.88rem;padding:13px;outline:none;resize:vertical;transition:.2s" onfocus="this.style.borderColor='var(--teal)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+  <div style="margin-top:10px;display:flex;gap:9px;flex-wrap:wrap">
+    <button class="btn btn-teal" onclick="processPasted()">✅ Use Pasted Text</button>
+    <button class="btn btn-ghost" onclick="useDemo()">🔬 Use Demo Paper</button>
+  </div>
+  <div id="file-pill" class="file-pill" style="display:none">
+    <span>📄</span><span id="file-name">file</span><span id="file-status" style="margin-left:auto;color:var(--teal-l)">Processing…</span>
+  </div>
+  <div id="upload-ok"></div>
+  <div id="upload-err"></div>
+</div>
+
+<!-- LOADING -->
+<div id="screen-loading" class="screen">
+  <div class="loading-wrap">
+    <div class="dna-loader" style="width:70px;height:70px;margin-bottom:28px"></div>
+    <div style="font-size:1.4rem;font-weight:700;margin-bottom:9px" id="load-title">Generating Quest</div>
+    <div style="color:var(--muted)" id="load-sub">AI is reading your paper and crafting visual challenges…</div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="game-topbar">
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <div id="level-badge" style="background:rgba(29,158,117,.15);border:1px solid var(--teal);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;color:var(--teal-l);letter-spacing:.5px">LVL 1 — ROOKIE</div>
+    </div>
+    <div class="prog-wrap">
+      <div class="prog-label"><span id="prog-topic" style="color:var(--teal-l);font-weight:600">—</span><span id="prog-text">Q 1 of 5</span></div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:20%"></div></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="stat-val" id="score-val">0</span><span class="stat-lbl">Score</span></div>
+      <div class="stat"><span class="stat-val" id="streak-val">🔥0</span><span class="stat-lbl">Streak</span></div>
+      <div class="stat"><span class="stat-val" id="lives-val">❤️❤️❤️</span><span class="stat-lbl">Lives</span></div>
+    </div>
+    <button class="btn btn-ghost" style="font-size:12px;padding:8px 12px" onclick="goHome()">🏠 Home</button>
+  </div>
+  <!-- LEVEL UNLOCK BANNER -->
+  <div id="level-unlock" style="display:none;background:linear-gradient(135deg,rgba(83,74,183,.25),rgba(29,158,117,.25));border:1px solid var(--teal);border-radius:16px;padding:16px 22px;margin-bottom:16px;text-align:center;animation:fadeUp .4s ease">
+    <div style="font-size:1.5rem;margin-bottom:4px" id="unlock-icon">🔓</div>
+    <div style="font-weight:700;color:var(--teal-l)" id="unlock-title">Level Up!</div>
+    <div style="font-size:.85rem;color:var(--muted)" id="unlock-desc">New challenge type unlocked</div>
+  </div>
+  <div class="q-box">
+    <div id="q-type-badge" style="display:inline-block;margin-bottom:12px;background:rgba(83,74,183,.15);border:1px solid rgba(83,74,183,.4);border-radius:8px;padding:3px 10px;font-size:11px;color:var(--purple-l);font-weight:600;letter-spacing:.5px"></div>
+    <div id="q-story" class="q-story">Loading…</div>
+    <div id="q-visual" class="q-visual"></div>
+    <div id="q-choices" class="choices"></div>
+  </div>
+  <div id="feedback-box" style="display:none" class="feedback">
+    <div id="fb-title" class="fb-title"></div>
+    <div id="fb-body" class="fb-body"></div>
+    <div id="vids" class="vids" style="display:none">
+      <h4>📺 Watch these to understand it better</h4>
+      <div id="vid-grid" class="vid-grid"></div>
+    </div>
+    <button class="btn btn-teal" onclick="nextQ()" id="next-btn" style="margin-top:14px">Next Challenge →</button>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="screen-results" class="screen">
+  <div class="results-wrap">
+    <div style="font-size:3rem">🎉</div>
+    <div class="big-score" id="final-score">0</div>
+    <div class="score-lbl" id="final-lbl">Great work!</div>
+    <div class="concept-list" id="concept-list"></div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:28px">
+      <button class="btn btn-purple" onclick="restartQuest()">🔄 Play Again</button>
+      <button class="btn btn-teal" onclick="startLab()">🧪 Explore Lab</button>
+      <button class="btn btn-ghost" onclick="goHome()">🏠 Home</button>
+    </div>
+  </div>
+</div>
+
+<!-- LAB -->
+<div id="screen-lab" class="screen">
+  <button class="back-btn" onclick="goHome()">← Back to Home</button>
+  <div class="sec-title">🧪 Lab Simulation</div>
+  <div class="lab-wrap">
+    <div class="lab-sidebar">
+      <div style="font-size:.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:2px 6px">Explore</div>
+      <button class="lab-btn active" id="lb-overview" onclick="labPanel('overview')"><span class="li">🔬</span>Overview</button>
+      <button class="lab-btn" id="lb-pathway" onclick="labPanel('pathway')"><span class="li">🔗</span>Pathway Map</button>
+      <button class="lab-btn" id="lb-dna" onclick="labPanel('dna')"><span class="li">🧬</span>DNA Helix</button>
+      <button class="lab-btn" id="lb-data" onclick="labPanel('data')"><span class="li">📊</span>Data Chart</button>
+      <button class="lab-btn" id="lb-concepts" onclick="labPanel('concepts')"><span class="li">💡</span>Key Concepts</button>
+      <button class="lab-btn" id="lb-ask" onclick="labPanel('ask')"><span class="li">🤖</span>Ask AI</button>
+    </div>
+    <div class="lab-main">
+      <div class="lab-panel active" id="panel-overview">
+        <div class="vis-title">📄 Paper Overview</div>
+        <div id="lab-overview-content" style="color:var(--muted);line-height:1.8;font-size:.93rem">
+          <div class="dna-loader" style="margin:40px auto"></div>
+        </div>
+      </div>
+      <div class="lab-panel" id="panel-pathway">
+        <div class="vis-title">🔗 Biological Pathway / Concept Map</div>
+        <div id="pathway-wrap" style="overflow-x:auto;padding:10px 0"></div>
+        <div id="pathway-desc" style="color:var(--muted);font-size:.88rem;line-height:1.7;margin-top:12px"></div>
+      </div>
+      <div class="lab-panel" id="panel-dna">
+        <div class="vis-title">🧬 DNA Double Helix — Live Animation</div>
+        <canvas class="dna-canvas" id="dna-canvas" height="220"></canvas>
+        <div id="seq-display" style="background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:11px;padding:16px;margin-top:14px;font-family:var(--mono);font-size:13px;line-height:2;color:var(--teal-l);letter-spacing:2px;word-break:break-all"></div>
+        <div id="seq-info" style="color:var(--muted);font-size:.88rem;margin-top:10px;line-height:1.7"></div>
+      </div>
+      <div class="lab-panel" id="panel-data">
+        <div class="vis-title">📊 Research Data Chart</div>
+        <canvas id="data-chart" height="280" style="width:100%;border-radius:11px;background:rgba(0,0,0,.4);border:1px solid var(--border)"></canvas>
+        <div id="data-desc" style="color:var(--muted);font-size:.88rem;margin-top:12px;line-height:1.7"></div>
+      </div>
+      <div class="lab-panel" id="panel-concepts">
+        <div class="vis-title">💡 Key Concepts &amp; Terms</div>
+        <div id="concepts-content" style="display:grid;gap:11px">
+          <div class="dna-loader" style="margin:40px auto"></div>
+        </div>
+      </div>
+      <div class="lab-panel" id="panel-ask">
+        <div class="vis-title">🤖 Ask the Lab AI</div>
+        <div class="tip">Ask anything about your paper — methods, findings, concepts, or implications!</div>
+        <div class="chat-msgs" id="chat-msgs">
+          <div class="msg msg-ai">Hi! I've read your paper. Ask me anything about it — methods, findings, concepts, anything! 🔬</div>
+        </div>
+        <div class="chat-row">
+          <input type="text" class="chat-inp" id="chat-inp" placeholder="Ask about your paper…" onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="btn btn-teal" onclick="sendChat()" id="chat-send">Ask →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+<div class="confetti-wrap" id="confetti-wrap"></div>
+
+<script>
+// ── STATE ──
+let uploadedContent='',contentReady=false;
+let questions=[],curQ=0,score=0,streak=0,answered=false,results=[];
+let labDataLoaded=false,labData=null,chatHistory=[];
+let dnaAnimId=null;
+
+// ── BG CANVAS ──
+(function(){
+  const c=document.getElementById('bg-canvas'),ctx=c.getContext('2d');
+  let W,H,P=[];
+  function rsz(){W=c.width=window.innerWidth;H=c.height=window.innerHeight}
+  rsz();window.addEventListener('resize',rsz);
+  for(let i=0;i<70;i++)P.push({x:Math.random()*1400,y:Math.random()*900,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,r:Math.random()*1.4+.4,t:Math.random()>.5});
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    P.forEach(p=>{
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.t?'rgba(29,158,117,.8)':'rgba(83,74,183,.8)';ctx.fill();
+    });
+    for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){
+      const dx=P[i].x-P[j].x,dy=P[i].y-P[j].y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<90){ctx.beginPath();ctx.moveTo(P[i].x,P[i].y);ctx.lineTo(P[j].x,P[j].y);ctx.strokeStyle=`rgba(29,158,117,${.12*(1-d/90)})`;ctx.lineWidth=.4;ctx.stroke()}
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── NAV ──
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+id).classList.add('active');window.scrollTo(0,0)}
+function goHome(){show('home')}
+function goUpload(){show('upload')}
+
+// ── UPLOAD ──
+(function(){
+  const z=document.getElementById('upload-zone'),i=document.getElementById('file-input');
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag')});
+  z.addEventListener('dragleave',()=>z.classList.remove('drag'));
+  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('drag');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0])});
+  i.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0])});
+})();
+
+async function handleFile(file){
+  document.getElementById('upload-ok').innerHTML='';
+  document.getElementById('upload-err').innerHTML='';
+  document.getElementById('file-name').textContent=file.name;
+  document.getElementById('file-status').textContent='Processing…';
+  document.getElementById('file-pill').style.display='flex';
+  try{
+    let text='';
+    if(file.type.startsWith('text/')||/\.(txt|md|markdown|csv)$/i.test(file.name)){
+      text=await file.text();
+    } else {
+      try{text=await file.text()}catch(e){}
+      if(!text||text.length<80){setContent(getDemoContent());showOK('PDF loaded (demo content used — paste text for best results)',getDemoContent().length);document.getElementById('file-pill').style.display='none';return}
+    }
+    if(text.length<50)throw new Error('File content too short. Try pasting text instead.');
+    setContent(text);document.getElementById('file-pill').style.display='none';
+    showOK(file.name,text.length);
+  }catch(e){
+    document.getElementById('file-pill').style.display='none';
+    document.getElementById('upload-err').innerHTML=`<div class="msg-err">❌ ${e.message}</div>`;
+    uploadedContent='';contentReady=false;
+  }
+}
+function processPasted(){
+  const t=document.getElementById('paste-area').value.trim();
+  if(t.length<50){document.getElementById('upload-err').innerHTML='<div class="msg-err">❌ Please paste more content (at least 50 characters).</div>';return}
+  setContent(t);showOK('pasted text',t.length);
+}
+function useDemo(){const d=getDemoContent();document.getElementById('paste-area').value=d;setContent(d);showOK('CRISPR Demo Paper',d.length)}
+function setContent(text){
+  uploadedContent=text;contentReady=true;labDataLoaded=false;labData=null;chatHistory=[];
+  document.getElementById('quest-card').classList.remove('locked');
+  document.getElementById('lab-card').classList.remove('locked');
+  document.getElementById('quest-tag').textContent='✅ Ready!';
+  document.getElementById('lab-tag').textContent='✅ Ready!';
+}
+function showOK(name,len){
+  document.getElementById('upload-ok').innerHTML=`<div class="msg-ok">
+    <div style="font-size:1.8rem;margin-bottom:6px">✅</div>
+    <strong>Content loaded!</strong> — ${name} (${len.toLocaleString()} chars)<br>
+    <div style="display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:12px">
+      <button class="btn btn-purple" onclick="startQuest()">🎮 Start Quest</button>
+      <button class="btn btn-coral" onclick="startLab()">🧪 Enter Lab</button>
+    </div>
+  </div>`;
+}
+
+function getDemoContent(){return`CRISPR-Cas9 Mediated Enhancement of BDNF Expression in Hippocampal Neurons
+
+Abstract: This study investigates CRISPR activation (CRISPRa) of Brain-Derived Neurotrophic Factor (BDNF) as a therapeutic strategy for cognitive impairment. dCas9-VP64 was delivered via AAV-PHP.eB into mouse hippocampal neurons, achieving 3.2-fold BDNF mRNA increase and 2.8-fold protein increase.
+
+Introduction: BDNF regulates synaptic plasticity and is dysregulated in Alzheimer's disease, depression, and autism. The BDNF gene spans 70 kb with multiple tissue-specific promoters. Conventional pharmacological approaches face blood-brain barrier challenges.
+
+Methods: Three gRNAs (5'-GCGCGGAATCGATCGGAATC-3', 5'-ATCGGAATCGATCGGCCGAT-3', 5'-CGATCGGAATCGATCGGAAT-3') were designed using CRISPOR. AAV-PHP.eB enabled CNS transduction. Behavioral tests: Morris water maze, Novel Object Recognition (NOR), fear conditioning.
+
+Results: 3.2-fold increase in BDNF mRNA (p<0.001); 2.8-fold protein increase (ELISA); 15% improvement in Morris water maze escape latency; 28% improvement in NOR discrimination index; Enhanced LTP at CA1 synapses (150% vs 110% baseline). No off-target editing detected by GUIDE-seq at top 10 sites.
+
+Key Concepts: CRISPR — bacterial immune system repurposed for genome editing. dCas9 — catalytically dead Cas9 for gene activation without cutting. VP64 — transcriptional activator domain. AAV — viral delivery vector. BDNF — neurotrophin for neuron survival and plasticity. LTP — cellular basis of learning and memory. Hippocampus — brain region for spatial and episodic memory.
+
+Discussion: CRISPRa upregulates endogenous BDNF maintaining natural splicing variants, avoids DNA damage, achieves region-specific effects. Future work: long-term expression stability, immune responses to viral vectors.`}
+
+// ── QUEST ──
+const LEVELS=[
+  {name:'ROOKIE',min:0,icon:'🧬',color:'var(--teal)',types:['sequence','data_table','bar_chart','concept_diagram','method_steps']},
+  {name:'ANALYST',min:2,icon:'🔬',color:'var(--purple-l)',types:['blast_search','sequence_align','sequence','data_table','bar_chart','concept_diagram','method_steps']},
+  {name:'EXPERT',min:4,icon:'🧫',color:'var(--coral-l)',types:['blast_search','sequence_align','sequence','data_table','bar_chart','concept_diagram','method_steps']},
+];
+let lives=3;
+
+function getLevel(qIndex){
+  if(qIndex>=4)return LEVELS[2];
+  if(qIndex>=2)return LEVELS[1];
+  return LEVELS[0];
+}
+
+async function startQuest(){
+  if(!contentReady){alert('Upload content first! Click Use Demo Paper or paste text and confirm it.');goUpload();return}
+  const key=document.getElementById('api-key').value.trim();
+  if(!key){alert('Paste your OpenAI API key in the top-right box first.');return}
+  if(!key.startsWith('sk-')){alert('Key should start with sk- — check it and try again.');return}
+  show('loading');
+  document.getElementById('load-title').textContent='Generating Quest';
+  document.getElementById('load-sub').textContent='AI is crafting your visual challenges...';
+  try{
+    questions=await genQuestions(uploadedContent,key);
+    curQ=0;score=0;streak=0;answered=false;results=[];lives=3;
+    document.getElementById('level-unlock').style.display='none';
+    show('game');renderQ();
+  }catch(e){
+    show('loading');
+    document.getElementById('load-title').textContent='Error';
+    document.getElementById('load-sub').innerHTML='<span style="color:#ff8866">'+e.message+'</span><br><br><button class="btn btn-ghost" onclick="goHome()">Back to Home</button>';
+  }
+}
+
+async function genQuestions(content,apiKey){
+  const res=await fetch('https://api.openai.com/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+    body:JSON.stringify({
+      model:'gpt-4o',
+      messages:[{role:'user',content:`You are a bioinformatics professor designing a progressive interactive mystery game. Based on this research paper, create EXACTLY 7 challenges that get harder. Levels: Q1-2=Rookie (basic recall), Q3-4=Analyst (BLAST/alignment skills), Q5-7=Expert (interpretation+synthesis).
+
+PAPER:
+"""
+${content.substring(0,3500)}
+"""
+
+Return ONLY a valid JSON array, no markdown, no explanation. Each element:
+{
+  "topic": "short topic (2-4 words)",
+  "level": "Rookie|Analyst|Expert",
+  "challengeType": "BLAST Search|Sequence Alignment|Pathogen ID|Data Interpretation|Method Recall|Concept Match|Synthesis",
+  "story": "Immersive 2-sentence detective/mystery scenario placing student in lab as scientist",
+  "question": "The specific question to answer based on the visual",
+  "visual": "sequence|data_table|bar_chart|concept_diagram|method_steps|blast_result|alignment",
+  "visualContent": "sequence: ATCG string 30-50 chars | data_table: Header1|Header2|Header3\\nRow1Col1|Row1Col2|Row1Col3\\n... | bar_chart: Label:value,Label:value,... | concept_diagram: NodeA→NodeB→NodeC→... | method_steps: 1. step\\n2. step\\n... | blast_result: Subject|Score|E-value|Identity\\nOrg1|245|2e-45|98%\\nOrg2|198|3e-32|87%\\nOrg3|156|1e-20|76% | alignment: SEQ1:ATCGG-TACG\\nSEQ2:ATCGGTAACG (use - for gaps, 30-40 chars each)",
+  "choices":[
+    {"text":"answer option A","correct":true},
+    {"text":"answer option B","correct":false},
+    {"text":"answer option C","correct":false},
+    {"text":"answer option D","correct":false}
+  ],
+  "explanation":"2-3 sentences why correct, citing specific data from paper",
+  "wrongFeedback":"2-3 sentences: what the mistake was + the correct concept explained clearly",
+  "skill":"The real bioinformatics skill this tests (e.g. 'Reading BLAST E-values', 'Identifying mutations in alignment')",
+  "videoTopics":["specific youtube search 1 for this concept","specific youtube search 2","specific youtube search 3"]
+}
+Use actual sequences, values, and data from the paper. blast_result and alignment visuals for Q3+.`}],
+      max_tokens:2500,temperature:.65
+    })
+  });
+  if(!res.ok){
+    const d=await res.json().catch(()=>({}));
+    if(res.status===401)throw new Error('Invalid API key — check your OpenAI key');
+    if(res.status===429)throw new Error('Rate limit hit — wait a moment and try again');
+    if(res.status===402)throw new Error('Insufficient OpenAI credits');
+    throw new Error(`API error ${res.status}: ${d.error?.message||'unknown error'}`);
+  }
+  const d=await res.json();
+  let txt=d.choices[0].message.content.trim().replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+  try{const q=JSON.parse(txt);if(!Array.isArray(q)||!q.length)throw 0;
+    // shuffle choices so correct isn't always first
+    q.forEach(qu=>{
+      if(qu.choices&&qu.choices.length){
+        for(let i=qu.choices.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[qu.choices[i],qu.choices[j]]=[qu.choices[j],qu.choices[i]]}
+      }
+    });
+    return q;
+  }
+  catch(e){throw new Error('Could not parse AI response. Please try again.')}
+}
+
+function renderQ(){
+  const q=questions[curQ];
+  const lvl=getLevel(curQ);
+  const prevLvl=curQ>0?getLevel(curQ-1):null;
+
+  // Level up banner
+  if(prevLvl&&lvl.name!==prevLvl.name){
+    const ban=document.getElementById('level-unlock');
+    document.getElementById('unlock-icon').textContent=lvl.icon;
+    document.getElementById('unlock-title').textContent=`Level Up — ${lvl.name}!`;
+    document.getElementById('unlock-desc').textContent=curQ===2?'🔬 BLAST Search & Sequence Alignment challenges unlocked!':'🧫 Expert synthesis challenges unlocked — interpret and reason!';
+    ban.style.display='block';
+    setTimeout(()=>{ban.style.display='none'},4500);
+  }
+
+  // Level badge
+  const lbd=document.getElementById('level-badge');
+  lbd.textContent=`${lvl.icon} LVL ${curQ<2?1:curQ<4?2:3} — ${lvl.name}`;
+  lbd.style.background=`rgba(29,158,117,.15)`;
+  lbd.style.borderColor=lvl.color;
+  lbd.style.color=lvl.color;
+
+  // Challenge type badge
+  const tb=document.getElementById('q-type-badge');
+  tb.textContent=`🔍 ${q.challengeType||'Challenge'}`;
+
+  document.getElementById('prog-topic').textContent=q.topic||'';
+  document.getElementById('prog-text').textContent=`Q ${curQ+1} of ${questions.length}`;
+  document.getElementById('prog-fill').style.width=((curQ+1)/questions.length*100)+'%';
+  document.getElementById('score-val').textContent=score;
+  document.getElementById('streak-val').textContent=(streak>=3?'🔥':'')+(streak||'0');
+  document.getElementById('lives-val').textContent='❤️'.repeat(lives)+'🖤'.repeat(Math.max(0,3-lives));
+  document.getElementById('q-story').innerHTML=`<strong style="color:var(--text)">${q.story||''}</strong><br><br><span style="color:var(--teal-l);font-weight:600">${q.question||''}</span>`;
+  renderVis(q);renderChoices(q);
+  document.getElementById('feedback-box').style.display='none';
+  answered=false;
+}
+
+function renderVis(q){
+  const el=document.getElementById('q-visual');el.innerHTML='';
+  const v=q.visual||'concept_diagram',vc=q.visualContent||'';
+
+  if(v==='blast_result'){
+    // BLAST simulator
+    const rows=vc.split(/\\n|\n/).filter(Boolean);
+    const headers=rows[0]?rows[0].split('|'):['Subject','Score','E-value','Identity'];
+    const dataRows=rows.slice(1);
+    let tableHTML=`<div style="width:100%">
+      <div style="font-size:.72rem;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">🔍 NCBI BLAST Results — Sequence Homology Search</div>
+      <div style="overflow-x:auto">
+      <table class="data-table" style="width:100%">
+        <thead><tr>${headers.map(h=>`<th style="color:var(--teal-l)">${h.trim()}</th>`).join('')}</tr></thead>
+        <tbody>`;
+    dataRows.forEach((r,i)=>{
+      const cells=r.split('|');
+      const eVal=cells[2]?cells[2].trim():'';
+      const sig=parseFloat(eVal.replace(/[^\d.e\-+]/gi,''));
+      const sigColor=sig<1e-40?'#5DCAA5':sig<1e-20?'#EF9F27':'#D85A30';
+      tableHTML+=`<tr style="animation:fadeUp .3s ease ${i*.08}s both">
+        ${cells.map((c,ci)=>`<td style="${ci===2?`color:${sigColor};font-weight:700;font-family:var(--mono)`:ci===3?'color:var(--purple-l);font-family:var(--mono)':''}">${c.trim()}</td>`).join('')}
+      </tr>`;
+    });
+    tableHTML+=`</tbody></table></div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:.75rem;flex-wrap:wrap">
+        <span style="color:#5DCAA5">■ E &lt; 1e-40: High significance</span>
+        <span style="color:#EF9F27">■ E &lt; 1e-20: Moderate</span>
+        <span style="color:#D85A30">■ E &gt; 1e-20: Low</span>
+      </div></div>`;
+    el.innerHTML=tableHTML;
+
+  } else if(v==='alignment'){
+    // Sequence alignment viewer
+    const lines=vc.split(/\\n|\n/).filter(Boolean);
+    const seqPairs=lines.map(l=>{const parts=l.split(':');return{label:parts[0]||'SEQ',seq:(parts[1]||'').toUpperCase()}});
+    if(seqPairs.length<2){el.innerHTML=`<div style="font-family:var(--mono);color:var(--teal-l)">${vc}</div>`;return}
+    const s1=seqPairs[0].seq,s2=seqPairs[1].seq;
+    const maxLen=Math.max(s1.length,s2.length);
+    const col={A:'#ff8585',T:'#4ecdc4',C:'#45b7d1',G:'#96ceb4',U:'#ffeaa7','-':'rgba(255,255,255,.2)'};
+    const matchRow=Array.from({length:maxLen},(_,i)=>{
+      const a=s1[i]||'-',b=s2[i]||'-';
+      return a===b&&a!=='-'?'|':a!=='-'&&b!=='-'?'*':' ';
+    });
+    const identity=matchRow.filter(c=>c==='|').length;
+    const gaps=matchRow.filter(c=>c===' ').length;
+    const pctId=Math.round(identity/maxLen*100);
+
+    const renderSeq=(seq)=>Array.from({length:maxLen},(_,i)=>{
+      const b=seq[i]||'-';
+      return `<span style="color:${col[b]||'#fff'};background:${b==='-'?'rgba(216,90,48,.18)':'transparent'};border-radius:2px;font-weight:${b!=='-'?'700':'400'}">${b}</span>`;
+    }).join('');
+
+    el.innerHTML=`<div style="width:100%">
+      <div style="font-size:.72rem;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">🧬 Pairwise Sequence Alignment (Needleman-Wunsch)</div>
+      <div style="font-family:var(--mono);font-size:13px;line-height:2.2;letter-spacing:2px;overflow-x:auto">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:2px">
+          <span style="color:var(--muted);font-size:11px;width:54px;flex-shrink:0">${seqPairs[0].label.substring(0,6)}</span>
+          <span style="word-break:break-all">${renderSeq(s1)}</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:2px">
+          <span style="color:var(--muted);font-size:11px;width:54px;flex-shrink:0"></span>
+          <span style="word-break:break-all;letter-spacing:2px">${matchRow.map(c=>`<span style="color:${c==='|'?'var(--teal-l)':c==='*'?'var(--amber)':'var(--muted)'}">${c}</span>`).join('')}</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span style="color:var(--muted);font-size:11px;width:54px;flex-shrink:0">${seqPairs[1].label.substring(0,6)}</span>
+          <span style="word-break:break-all">${renderSeq(s2)}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:18px;margin-top:12px;font-size:.78rem;flex-wrap:wrap">
+        <span style="color:var(--teal-l)">✓ Identity: ${identity}/${maxLen} (${pctId}%)</span>
+        <span style="color:var(--coral-l)">— Gaps: ${gaps}</span>
+        <span style="color:var(--amber)">* Mismatches: ${matchRow.filter(c=>c==='*').length}</span>
+      </div>
+    </div>`;
+
+  } else if(v==='sequence'){
+    const seq=(vc.match(/[ATCGU]+/gi)||[vc]).join('').toUpperCase().substring(0,60)||'ATCGGCTAGCGATCGGCTAGCGATCGGCTAGCGATCGGCTAGCGATCGGCTAG';
+    const col={A:'#ff8585',T:'#4ecdc4',C:'#45b7d1',G:'#96ceb4',U:'#ffeaa7'};
+    const mid=Math.floor(seq.length*.3),end=Math.floor(seq.length*.65);
+    const full=seq.split('');
+    const pre=full.slice(0,mid).map(b=>`<span style="color:${col[b]||'#fff'}">${b}</span>`).join('');
+    const hl=full.slice(mid,end).map(b=>`<span style="color:${col[b]||'#fff'}">${b}</span>`).join('');
+    const suf=full.slice(end).map(b=>`<span style="color:${col[b]||'#fff'}">${b}</span>`).join('');
+    const gc=Math.round((seq.match(/[GC]/g)||[]).length/seq.length*100);
+    // animated scanning line
+    el.innerHTML=`<div style="width:100%">
+      <div style="font-size:.72rem;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">🔬 Sequence Viewer — 5′ → 3′</div>
+      <div class="seq-text">${pre}<span class="seq-hl">${hl}</span>${suf}</div>
+      <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:.78rem;text-align:center">
+        <div style="background:rgba(255,133,133,.1);border:1px solid rgba(255,133,133,.3);border-radius:8px;padding:8px"><div style="color:#ff8585;font-weight:700;font-size:1rem">${(seq.match(/A/g)||[]).length}</div><div style="color:var(--muted)">Adenine</div></div>
+        <div style="background:rgba(78,205,196,.1);border:1px solid rgba(78,205,196,.3);border-radius:8px;padding:8px"><div style="color:#4ecdc4;font-weight:700;font-size:1rem">${(seq.match(/T/g)||[]).length}</div><div style="color:var(--muted)">Thymine</div></div>
+        <div style="background:rgba(69,183,209,.1);border:1px solid rgba(69,183,209,.3);border-radius:8px;padding:8px"><div style="color:#45b7d1;font-weight:700;font-size:1rem">${(seq.match(/C/g)||[]).length}</div><div style="color:var(--muted)">Cytosine</div></div>
+        <div style="background:rgba(150,206,180,.1);border:1px solid rgba(150,206,180,.3);border-radius:8px;padding:8px"><div style="color:#96ceb4;font-weight:700;font-size:1rem">${(seq.match(/G/g)||[]).length}</div><div style="color:var(--muted)">Guanine</div></div>
+      </div>
+      <div style="display:flex;gap:20px;justify-content:center;margin-top:10px;font-size:.78rem">
+        <span style="color:var(--muted)">Length: ${seq.length} bp</span>
+        <span style="color:var(--teal-l)">GC content: ${gc}%</span>
+        <span style="color:var(--coral-l)">Highlighted: target region</span>
+      </div>
+    </div>`;
+
+  } else if(v==='data_table'){
+    const rows=vc.split(/\\n|\n/).filter(Boolean);
+    if(rows.length<2){el.innerHTML=`<div style="color:var(--teal-l);font-family:var(--mono);text-align:center">${vc}</div>`;return}
+    const headers=rows[0].split('|');
+    const dataRows=rows.slice(1);
+    el.innerHTML=`<div style="overflow-x:auto;width:100%">
+      <div style="font-size:.72rem;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">📋 Research Data Table</div>
+      <table class="data-table"><thead><tr>${headers.map(h=>`<th>${h.trim()}</th>`).join('')}</tr></thead>
+      <tbody>${dataRows.map((r,i)=>`<tr style="animation:fadeUp .25s ease ${i*.06}s both">${r.split('|').map((c,ci)=>{
+        const v=c.trim();const num=parseFloat(v);
+        const style=(!isNaN(num)&&num!==0)?`style="color:${num>2?'var(--teal-l)':num<0.5?'var(--coral-l)':'var(--text)'};font-weight:600;font-family:var(--mono)"`:'';
+        return`<td ${style}>${v}</td>`;
+      }).join('')}</tr>`).join('')}</tbody></table></div>`;
+
+  } else if(v==='bar_chart'){
+    const canvas=document.createElement('canvas');canvas.height=190;canvas.style.cssText='width:100%;border-radius:10px';
+    el.innerHTML=`<div style="font-size:.72rem;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">📊 Quantitative Results</div>`;
+    el.appendChild(canvas);
+    setTimeout(()=>{
+      canvas.width=canvas.offsetWidth||500;
+      const ctx=canvas.getContext('2d');
+      const pairs=(vc||'Control:100,Treatment:160').split(',').map(s=>s.trim().split(':'));
+      const labels=pairs.map(p=>p[0]||'');
+      const vals=pairs.map(p=>parseFloat(p[1])||0);
+      const maxV=Math.max(...vals)*1.28||1;
+      const W=canvas.width,H=canvas.height,n=labels.length;
+      const bW=Math.floor((W-80)/n*.65),gap=Math.floor((W-80)/n*.35);
+      const clrs=['rgba(29,158,117,.9)','rgba(83,74,183,.9)','rgba(216,90,48,.9)','rgba(239,159,39,.9)','rgba(93,202,165,.9)','rgba(175,169,236,.9)'];
+      ctx.clearRect(0,0,W,H);
+      // gridlines
+      for(let i=0;i<=4;i++){const y=22+i*(H-46)/4;ctx.beginPath();ctx.moveTo(52,y);ctx.lineTo(W-6,y);ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;ctx.stroke();ctx.fillStyle='rgba(136,136,170,.7)';ctx.font='9px JetBrains Mono,monospace';ctx.textAlign='right';ctx.fillText((maxV*(1-i/4)).toFixed(1),48,y+3)}
+      labels.forEach((lbl,i)=>{
+        const x=58+i*(bW+gap);
+        const targetH=Math.max(2,(vals[i]/maxV)*(H-46));
+        let curH=0;
+        const animBar=()=>{curH=Math.min(curH+targetH/18,targetH);const y=H-22-curH;ctx.clearRect(x-1,0,bW+2,H);// redraw gridlines under bar
+          for(let gi=0;gi<=4;gi++){const gy=22+gi*(H-46)/4;ctx.beginPath();ctx.moveTo(x-1,gy);ctx.lineTo(x+bW+1,gy);ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;ctx.stroke();}
+          ctx.fillStyle=clrs[i%clrs.length];ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,bW,curH,4);else ctx.rect(x,y,bW,curH);ctx.fill();
+          if(curH>=targetH){ctx.fillStyle='rgba(240,240,255,.95)';ctx.font='bold 11px JetBrains Mono,monospace';ctx.textAlign='center';ctx.fillText(vals[i],x+bW/2,y-5);}
+          ctx.fillStyle='rgba(136,136,170,.85)';ctx.font='10px Space Grotesk,sans-serif';ctx.textAlign='center';ctx.fillText(lbl.length>9?lbl.substring(0,8)+'…':lbl,x+bW/2,H-5);
+          if(curH<targetH)requestAnimationFrame(animBar);
+        };
+        setTimeout(animBar,i*80);
+      });
+    },50);
+
+  } else if(v==='concept_diagram'){
+    const parts=(vc||'Step 1→Step 2→Step 3').split('→').map(s=>s.trim()).filter(Boolean);
+    const clrs=['#1D9E75','#534AB7','#D85A30','#EF9F27','#5DCAA5','#AFA9EC'];
+    el.innerHTML=`<div style="font-size:.72rem;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">🔗 Biological Pathway</div>
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:9px;justify-content:center;width:100%">
+      ${parts.map((p,i)=>`
+        <div style="background:${clrs[i%clrs.length]}1a;border:2px solid ${clrs[i%clrs.length]}99;border-radius:11px;padding:11px 15px;font-size:.82rem;font-weight:700;color:${clrs[i%clrs.length]};text-align:center;max-width:140px;min-width:90px;transition:.25s;animation:fadeUp .3s ease ${i*.1}s both;cursor:default"
+          onmouseenter="this.style.transform='scale(1.07)';this.style.boxShadow='0 6px 20px ${clrs[i%clrs.length]}44'" onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='none'">${p}</div>
+        ${i<parts.length-1?`<div style="color:var(--muted);font-size:1.6rem;flex-shrink:0;animation:fadeUp .3s ease ${i*.1+.05}s both">→</div>`:''}
+      `).join('')}
+    </div>`;
+
+  } else if(v==='method_steps'){
+    const steps=vc.split(/\d+\.\s*|\\n|\n/).filter(s=>s.trim().length>3).slice(0,6);
+    const icons=['🧬','⚗️','🔬','📊','🧫','✅'];
+    el.innerHTML=`<div style="font-size:.72rem;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">🔬 Experimental Protocol</div>
+    <div style="display:flex;flex-direction:column;gap:9px;width:100%">${steps.map((s,i)=>`
+      <div style="display:flex;align-items:flex-start;gap:12px;animation:fadeUp .3s ease ${i*.07}s both;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:10px 13px">
+        <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--purple));display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">${icons[i]||i+1}</div>
+        <div style="font-size:.88rem;color:var(--text);line-height:1.55">${s.trim()}</div>
+      </div>`).join('')}</div>`;
+  } else {
+    el.innerHTML=`<div style="color:var(--teal-l);font-size:.92rem;text-align:center;line-height:1.6">${vc||'Visual from your research'}</div>`;
+  }
+}
+
+function renderChoices(q){
+  const el=document.getElementById('q-choices');el.innerHTML='';
+  const letters=['A','B','C','D'];
+  q.choices.forEach((c,i)=>{
+    const d=document.createElement('div');d.className='choice';
+    d.style.animation=`fadeUp .3s ease ${i*.07}s both`;
+    d.innerHTML=`<div style="display:flex;align-items:flex-start;gap:11px">
+      <div class="ch-letter">${letters[i]}</div>
+      <div style="font-size:.88rem;line-height:1.55;padding-top:5px">${c.text}</div>
+    </div>`;
+    d.onclick=()=>pick(i,c.correct,q);el.appendChild(d);
+  });
+}
+
+function pick(idx,correct,q){
+  if(answered)return;answered=true;results.push(correct);
+  document.querySelectorAll('.choice').forEach((c,i)=>{c.style.pointerEvents='none';if(q.choices[i].correct)c.classList.add('correct')});
+  if(correct){document.querySelectorAll('.choice')[idx].classList.add('correct');const bonus=streak>=2?50:0;score+=100+bonus;streak++;}
+  else{document.querySelectorAll('.choice')[idx].classList.add('wrong');streak=0;lives=Math.max(0,lives-1);}
+  document.getElementById('score-val').textContent=score;
+  document.getElementById('streak-val').textContent=(streak>=3?'🔥':'')+streak;
+  document.getElementById('lives-val').textContent='❤️'.repeat(lives)+'🖤'.repeat(Math.max(0,3-lives));
+  showFeedback(correct,q);
+}
+
+function showFeedback(correct,q){
+  const skillText=q.skill?`<div style="margin-top:8px;padding:8px 12px;background:rgba(83,74,183,.1);border:1px solid rgba(83,74,183,.3);border-radius:8px;font-size:.8rem;color:var(--purple-l)">🎯 Skill practiced: <strong>${q.skill}</strong></div>`:'';
+  document.getElementById('fb-title').innerHTML=correct
+    ?`<span style="color:var(--teal-l)">🎉 Correct!${streak>=2?' <span style="font-size:.75rem;color:var(--amber)">+50 streak bonus!</span>':''}</span>`
+    :`<span style="color:var(--coral-l)">❌ Not quite — ${lives>0?`${lives} ${lives===1?'life':'lives'} remaining`:'No lives left'}</span>`;
+  document.getElementById('fb-body').innerHTML=`<p>${correct?q.explanation:q.wrongFeedback}</p>${skillText}`;
+  const vids=document.getElementById('vids');
+  if(!correct&&q.videoTopics?.length){
+    document.getElementById('vid-grid').innerHTML=q.videoTopics.slice(0,3).map((t,vi)=>{
+      const q2=encodeURIComponent(t+' bioinformatics explained');
+      const thumbColors=['linear-gradient(135deg,#e00,#900)','linear-gradient(135deg,#e06030,#a02000)','linear-gradient(135deg,#c00050,#800030)'];
+      return `<div class="vid-card" onclick="window.open('https://www.youtube.com/results?search_query=${q2}','_blank')">
+        <div class="vid-thumb" style="background:${thumbColors[vi%3]}">▶</div>
+        <div><div class="vid-title">${t}</div><div class="vid-ch">Open YouTube Search →</div></div>
+      </div>`;
+    }).join('');
+    vids.style.display='block';
+  }else vids.style.display='none';
+  const isLast=curQ===questions.length-1;
+  document.getElementById('next-btn').textContent=isLast?'🏆 See Final Results →':'Next Challenge →';
+  document.getElementById('feedback-box').style.display='block';
+  document.getElementById('feedback-box').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function nextQ(){
+  curQ++;
+  if(curQ>=questions.length)showResults();
+  else renderQ();
+}
+
+function showResults(){
+  const pct=Math.round(score/(questions.length*100)*100);
+  document.getElementById('final-score').textContent=`${score} pts`;
+  const msgs=['🧐 Keep reviewing — watch the video suggestions!','📚 Good start! Re-read those wrong answers.','🔍 Solid grasp of the core concepts.','🎯 Great detective work!','🏆 Outstanding bioinformatician!'];
+  document.getElementById('final-lbl').textContent=msgs[Math.min(4,Math.floor(pct/25))];
+  const list=document.getElementById('concept-list');list.innerHTML='';
+  questions.forEach((q,i)=>{
+    const ok=results[i];const d=document.createElement('div');d.className='concept-row';
+    const lvl=getLevel(i);
+    d.innerHTML=`<div class="cdot ${ok?'dok':'dno'}">${ok?'✓':'✗'}</div>
+    <div style="flex:1">
+      <div style="font-weight:600;font-size:.92rem">${q.topic} <span style="font-size:.72rem;color:var(--muted);font-weight:400">${lvl.icon} ${lvl.name}</span></div>
+      <div style="font-size:.8rem;color:var(--muted)">${(q.challengeType||'')} — ${(q.story||'').substring(0,60)}…</div>
+    </div>`;
+    list.appendChild(d);
+  });
+  const correct=results.filter(Boolean).length;
+  // lives bonus
+  const livesBonus=lives*25;
+  if(livesBonus>0){
+    const bonusRow=document.createElement('div');bonusRow.className='concept-row';
+    bonusRow.innerHTML=`<div class="cdot dok">❤️</div><div><div style="font-weight:600;font-size:.92rem">Lives Remaining Bonus</div><div style="font-size:.8rem;color:var(--muted)">${lives} lives × 25 pts = +${livesBonus}</div></div>`;
+    list.appendChild(bonusRow);
+    document.getElementById('final-score').textContent=`${score+livesBonus} pts`;
+  }
+  show('results');
+  if(correct/questions.length>=0.7)confetti();
+}
+function restartQuest(){curQ=0;score=0;streak=0;answered=false;results=[];questions=[];lives=3;document.getElementById('level-unlock').style.display='none';show('home')}
+
+// ── LAB ──
+async function startLab(){
+  if(!contentReady){alert('Please upload research content first!');goUpload();return}
+  show('lab');
+  document.querySelectorAll('.lab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('lb-overview').classList.add('active');
+  document.querySelectorAll('.lab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-overview').classList.add('active');
+  if(!labDataLoaded)await loadLabData();
+  startDNA();
+}
+
+async function loadLabData(){
+  const key=document.getElementById('api-key').value.trim();
+  if(!key.startsWith('sk-')){labData=getDemoLabData();renderLab();labDataLoaded=true;return}
+  try{
+    const res=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},
+      body:JSON.stringify({
+        model:'gpt-4o',
+        messages:[{role:'user',content:`Extract structured lab visualization data from this research paper. Return ONLY valid JSON, no markdown.
+
+PAPER:
+${uploadedContent.substring(0,5000)}
+
+Return exactly:
+{
+  "title": "paper title",
+  "summary": "3 short paragraphs about this paper separated by \\n\\n",
+  "pathway": "node1→node2→node3→node4→node5 (key biological pathway using → arrows, 4-7 nodes)",
+  "pathwayDesc": "1-2 sentences explaining this pathway",
+  "sequence": "actual DNA/RNA sequence from paper OR representative one (25-45 chars, ATCG only)",
+  "sequenceInfo": "what this sequence represents in the research",
+  "chartData": "Label1:value1,Label2:value2,Label3:value3,Label4:value4 (key quantitative findings, values as numbers)",
+  "chartDesc": "what these numbers represent",
+  "concepts": [{"term":"term","def":"1-2 sentence definition","color":"teal|purple|coral|amber"}]
+}`}],
+        max_tokens:1200,temperature:.3
+      })
+    });
+    const d=await res.json();
+    let txt=d.choices[0].message.content.trim().replace(/^```json\s*/i,'').replace(/```\s*$/i,'').trim();
+    labData=JSON.parse(txt);
+  }catch(e){labData=getDemoLabData()}
+  renderLab();labDataLoaded=true;
+}
+
+function getDemoLabData(){return{
+  title:'CRISPR-Cas9 Mediated BDNF Enhancement',
+  summary:`This study demonstrates CRISPRa (CRISPR activation) enhances BDNF expression in hippocampal neurons. The team achieved a 3.2-fold mRNA increase and 2.8-fold protein increase using dCas9-VP64 delivered by AAV-PHP.eB.\n\nBehavioral tests showed 15% improvement in spatial memory (Morris water maze) and 28% improvement in novel object recognition — suggesting significant cognitive benefits from targeted gene upregulation.\n\nThe approach avoids DNA cutting unlike nuclease-active CRISPR, reducing safety concerns and maintaining natural BDNF splicing patterns. This makes it a promising candidate for eventual clinical translation in Alzheimer's and depression treatment.`,
+  pathway:'gRNA Design→dCas9-VP64 Complex→AAV-PHP.eB Delivery→BDNF Promoter Binding→BDNF Transcription→Synaptic Plasticity',
+  pathwayDesc:'gRNAs direct the dCas9-VP64 fusion to the BDNF promoter, recruiting transcription machinery to boost BDNF production, ultimately enhancing synaptic plasticity and cognitive function.',
+  sequence:'GCGCGGAATCGATCGGAATCATCGGCCGAT',
+  sequenceInfo:'gRNA-1 protospacer sequence targeting the BDNF promoter region for transcriptional activation',
+  chartData:'BDNF mRNA:3.2,BDNF Protein:2.8,Spatial Memory:1.15,LTP:1.5,Off-targets:0.02',
+  chartDesc:'Key quantitative results normalized to control: fold-changes in gene expression, behavioral improvement ratios, and off-target editing rate.',
+  concepts:[
+    {term:'CRISPR-Cas9',def:'Bacterial immune system repurposed as precision genome editing. Guide RNA directs Cas9 to specific DNA sequences for cutting or regulation.',color:'teal'},
+    {term:'dCas9 (dead Cas9)',def:"Catalytically inactive Cas9 variant. Binds DNA without cutting — used for gene activation (CRISPRa) or repression (CRISPRi) without permanent genome edits.",color:'purple'},
+    {term:'BDNF',def:'Brain-Derived Neurotrophic Factor. A neurotrophin protein that supports neuron survival, growth, and synaptic plasticity. Dysregulated in Alzheimer\'s and depression.',color:'coral'},
+    {term:'AAV-PHP.eB',def:'Adeno-Associated Virus variant engineered for enhanced CNS penetration. Crosses the blood-brain barrier when injected systemically, enabling non-invasive gene delivery.',color:'amber'},
+    {term:'LTP',def:'Long-Term Potentiation. Activity-dependent strengthening of synaptic connections. Widely considered the cellular mechanism underlying learning and memory formation.',color:'teal'},
+    {term:'VP64',def:'Transcriptional activator consisting of 4 tandem copies of VP16. Fused to dCas9 to recruit RNA polymerase and transcription factors, boosting target gene expression.',color:'purple'},
+  ]
+}}
+
+function renderLab(){
+  if(!labData)return;
+  // Overview
+  document.getElementById('lab-overview-content').innerHTML=`<h2 style="font-size:1.2rem;font-weight:700;margin-bottom:14px;color:var(--text)">${labData.title||'Research Paper'}</h2>${(labData.summary||'').split('\n\n').map(p=>`<p style="margin-bottom:13px">${p}</p>`).join('')}`;
+  // Pathway
+  if(labData.pathway){
+    const parts=labData.pathway.split('→').map(s=>s.trim()).filter(Boolean);
+    const clrs=['#1D9E75','#534AB7','#D85A30','#EF9F27','#5DCAA5','#AFA9EC'];
+    document.getElementById('pathway-wrap').innerHTML=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;justify-content:center;padding:20px 0">
+      ${parts.map((p,i)=>`
+        <div style="background:${clrs[i%clrs.length]}1a;border:2px solid ${clrs[i%clrs.length]}aa;border-radius:12px;padding:13px 17px;font-size:.82rem;font-weight:700;color:${clrs[i%clrs.length]};text-align:center;min-width:100px;cursor:default;transition:.25s"
+          onmouseenter="this.style.transform='translateY(-3px) scale(1.04)'" onmouseleave="this.style.transform='none'">${p}<br><span style="font-size:.65rem;font-weight:400;opacity:.7">Step ${i+1}</span></div>
+        ${i<parts.length-1?'<div style="color:var(--muted);font-size:1.6rem;flex-shrink:0;animation:arr-pulse 1.5s infinite alternate" id="ar'+i+'">→</div>':''}
+      `).join('')}
+    </div>`;
+  }
+  document.getElementById('pathway-desc').textContent=labData.pathwayDesc||'';
+  // Sequence
+  if(labData.sequence){
+    const seq=(labData.sequence.match(/[ATCGU]+/gi)||['ATCGGCTAGCGATCG']).join('').toUpperCase();
+    const col={A:'#ff8585',T:'#4ecdc4',C:'#45b7d1',G:'#96ceb4',U:'#ffeaa7'};
+    document.getElementById('seq-display').innerHTML=seq.split('').map(b=>`<span style="color:${col[b]||'#fff'};font-weight:600">${b}</span>`).join('');
+    document.getElementById('seq-info').innerHTML=`<strong style="color:var(--text)">Sequence context:</strong> ${labData.sequenceInfo||''}<br><span style="color:var(--teal-l)">Length: ${seq.length} bp</span> · GC: ${Math.round((seq.match(/[GC]/g)||[]).length/seq.length*100)}% · <span style="color:#ff8585">■</span> A · <span style="color:#4ecdc4">■</span> T · <span style="color:#45b7d1">■</span> C · <span style="color:#96ceb4">■</span> G`;
+  }
+  // Concepts
+  if(labData.concepts?.length){
+    const cc={teal:'#1D9E75',purple:'#534AB7',coral:'#D85A30',amber:'#EF9F27'};
+    document.getElementById('concepts-content').innerHTML=labData.concepts.map(c=>`<div style="background:${cc[c.color]||'#1D9E75'}12;border:1px solid ${cc[c.color]||'#1D9E75'}44;border-radius:13px;padding:15px 18px;transition:.2s;cursor:default" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform='none'"><div style="font-weight:700;color:${cc[c.color]||'#1D9E75'};margin-bottom:6px;font-size:.95rem">${c.term}</div><div style="color:var(--muted);font-size:.86rem;line-height:1.6">${c.def}</div></div>`).join('');
+  }
+  // Data chart drawn when panel opened
+}
+
+function drawDataChart(){
+  if(!labData?.chartData)return;
+  const canvas=document.getElementById('data-chart');if(!canvas)return;
+  canvas.width=canvas.offsetWidth||560;
+  const ctx=canvas.getContext('2d');
+  const pairs=labData.chartData.split(',').map(s=>s.trim().split(':'));
+  const labels=pairs.map(p=>p[0]||'');
+  const vals=pairs.map(p=>parseFloat(p[1])||0);
+  const maxV=Math.max(...vals.map(Math.abs))*1.3||1;
+  const W=canvas.width,H=280,n=labels.length;
+  const bW=Math.floor((W-90)/n*.68),gap=Math.floor((W-90)/n*.32);
+  const clrs=['rgba(29,158,117,.85)','rgba(83,74,183,.85)','rgba(216,90,48,.85)','rgba(239,159,39,.85)','rgba(93,202,165,.85)','rgba(175,169,236,.85)'];
+  ctx.clearRect(0,0,W,H);
+  for(let i=0;i<=5;i++){const y=30+i*(H-55)/5;ctx.beginPath();ctx.moveTo(62,y);ctx.lineTo(W-8,y);ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=1;ctx.stroke();ctx.fillStyle='rgba(136,136,170,.7)';ctx.font='10px JetBrains Mono,monospace';ctx.textAlign='right';ctx.fillText((maxV*(1-i/5)).toFixed(1),58,y+4)}
+  labels.forEach((lbl,i)=>{
+    const x=68+i*(bW+gap),barH=Math.max(2,(vals[i]/maxV)*(H-55)),y=H-25-barH;
+    ctx.fillStyle=clrs[i%clrs.length];
+    ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,bW,barH,5);else ctx.rect(x,y,bW,barH);ctx.fill();
+    ctx.fillStyle='rgba(240,240,255,.9)';ctx.font='bold 11px JetBrains Mono,monospace';ctx.textAlign='center';ctx.fillText(vals[i],x+bW/2,y-5);
+    ctx.fillStyle='rgba(136,136,170,.85)';ctx.font='10px Space Grotesk,sans-serif';ctx.fillText(lbl.length>10?lbl.substring(0,9)+'…':lbl,x+bW/2,H-8);
+  });
+  document.getElementById('data-desc').textContent=labData.chartDesc||'';
+}
+
+function labPanel(id){
+  document.querySelectorAll('.lab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('lb-'+id).classList.add('active');
+  document.querySelectorAll('.lab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  if(id==='data')setTimeout(drawDataChart,60);
+  if(id==='dna')startDNA();
+}
+
+// ── DNA ANIMATION ──
+function startDNA(){
+  const canvas=document.getElementById('dna-canvas');if(!canvas)return;
+  if(dnaAnimId){cancelAnimationFrame(dnaAnimId);dnaAnimId=null}
+  canvas.width=canvas.offsetWidth||600;
+  const ctx=canvas.getContext('2d'),W=canvas.width,H=220;
+  const bases=['A','T','C','G'];
+  const col={A:'#ff8585',T:'#4ecdc4',C:'#45b7d1',G:'#96ceb4'};
+  let t=0;
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    const amp=38,freq=.05,spd=.025;
+    // Strand 1
+    ctx.beginPath();
+    for(let x=0;x<=W;x++){const y=H/2+Math.sin(x*freq+t)*amp;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y)}
+    ctx.strokeStyle='rgba(29,158,117,.55)';ctx.lineWidth=2.5;ctx.stroke();
+    // Strand 2
+    ctx.beginPath();
+    for(let x=0;x<=W;x++){const y=H/2+Math.sin(x*freq+t+Math.PI)*amp;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y)}
+    ctx.strokeStyle='rgba(83,74,183,.55)';ctx.lineWidth=2.5;ctx.stroke();
+    // Base pairs
+    for(let x=0;x<W;x+=26){
+      const y1=H/2+Math.sin(x*freq+t)*amp,y2=H/2+Math.sin(x*freq+t+Math.PI)*amp;
+      ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1.2;ctx.stroke();
+      const b=bases[Math.floor(x/26)%4];
+      ctx.fillStyle=col[b];ctx.font='bold 9px JetBrains Mono,monospace';ctx.textAlign='center';
+      ctx.fillText(b,x,(y1+y2)/2+4);
+    }
+    t+=spd;dnaAnimId=requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+// ── AI CHAT ──
+async function sendChat(){
+  const inp=document.getElementById('chat-inp'),msg=inp.value.trim();
+  if(!msg)return;
+  const key=document.getElementById('api-key').value.trim();
+  if(!key.startsWith('sk-')){alert('Add your OpenAI API key in the top-right field');return}
+  inp.value='';addMsg(msg,'user');
+  document.getElementById('chat-send').disabled=true;
+  const el=addMsg('<span class="typing-dots"><span>●</span><span>●</span><span>●</span></span>','ai',true);
+  chatHistory.push({role:'user',content:msg});
+  try{
+    const res=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},
+      body:JSON.stringify({
+        model:'gpt-4o',
+        messages:[{role:'system',content:`You are a friendly bioinformatics tutor. The user uploaded this paper:\n\n${uploadedContent.substring(0,4000)}\n\nAnswer questions about it clearly and concisely. Use bullet points for lists. Max 180 words.`},...chatHistory],
+        max_tokens:280,temperature:.7
+      })
+    });
+    const d=await res.json();
+    const reply=d.choices[0].message.content;
+    chatHistory.push({role:'assistant',content:reply});
+    el.textContent=reply;
+  }catch(e){el.textContent='Error — check your API key and try again.'}
+  document.getElementById('chat-send').disabled=false;
+  const m=document.getElementById('chat-msgs');m.scrollTop=m.scrollHeight;
+}
+function addMsg(html,role,returnEl=false){
+  const d=document.createElement('div');d.className='msg msg-'+role;d.innerHTML=html;
+  const m=document.getElementById('chat-msgs');m.appendChild(d);m.scrollTop=m.scrollHeight;
+  if(returnEl)return d;
+}
+
+// ── CONFETTI ──
+function confetti(){
+  const wrap=document.getElementById('confetti-wrap');
+  const clrs=['#1D9E75','#534AB7','#D85A30','#EF9F27','#5DCAA5','#AFA9EC','#ff8585'];
+  const style=document.createElement('style');
+  style.textContent=`@keyframes cf{0%{opacity:1;transform:translateY(0) rotate(0deg)}100%{opacity:0;transform:translateY(110vh) rotate(720deg)}}`;
+  document.head.appendChild(style);
+  for(let i=0;i<90;i++){
+    const el=document.createElement('div');
+    const sz=5+Math.random()*8;
+    el.style.cssText=`position:absolute;left:${Math.random()*100}%;top:-10px;width:${sz}px;height:${sz}px;background:${clrs[i%clrs.length]};border-radius:${Math.random()>.5?'50%':'3px'};animation:cf ${1.4+Math.random()*2}s ease-in ${Math.random()*.8}s forwards`;
+    wrap.appendChild(el);
+  }
+  setTimeout(()=>wrap.innerHTML='',4200);
+}
+</script>
+</body>
+</html>
